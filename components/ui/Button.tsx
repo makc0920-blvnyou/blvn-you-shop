@@ -1,6 +1,3 @@
-'use client'
-
-import { motion } from 'framer-motion'
 import { classNames } from '@/lib/utils'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -37,9 +34,7 @@ export default function Button({
   }
 
   return (
-    <motion.button
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+    <button
       className={classNames(
         baseStyles,
         variants[variant],
@@ -58,6 +53,6 @@ export default function Button({
         </svg>
       ) : null}
       {children}
-    </motion.button>
+    </button>
   )
 }
