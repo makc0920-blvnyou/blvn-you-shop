@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
   try {
     const { messages } = await request.json()
     let lastMessage = messages[messages.length - 1].content.toLowerCase()
-    lastMessage = lastMessage.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim()
+    lastMessage = lastMessage.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]/g, '').trim()
 
     let bestMatch = null
     let maxMatches = 0
