@@ -49,7 +49,8 @@ export default function CatalogPage() {
   return (
     <main>
       {blocks.map((block) => {
-        const style = block.content_json?.style || {}
+        const raw = typeof block.content_json === 'string' ? JSON.parse(block.content_json) : (block.content_json || {})
+        const style = raw.style || {}
         const bgColor = style.background_gradient || style.background_color || '#ffffff'
         const textColor = style.text_color || '#1f2937'
         const accentColor = style.accent_color || '#ec4899'
@@ -60,8 +61,8 @@ export default function CatalogPage() {
             <section key={block.id} className="py-20 md:py-32 text-center" style={{ backgroundColor: bgColor, color: textColor }}>
               <div className="container mx-auto px-4">
                 <h1 className="text-4xl md:text-5xl font-bold mb-4">{block.title}</h1>
-                {block.content_json?.subtitle && (
-                  <p className="text-xl opacity-90 max-w-2xl mx-auto">{block.content_json.subtitle}</p>
+                {raw.subtitle && (
+                  <p className="text-xl opacity-90 max-w-2xl mx-auto">{raw.subtitle}</p>
                 )}
               </div>
             </section>
@@ -70,7 +71,7 @@ export default function CatalogPage() {
 
         // FILTERS - Фильтры категорий
         if (block.block_type === 'filters') {
-          const categories = block.content_json?.categories || []
+          const categories = raw.categories || []
           
           return (
             <section key={block.id} className="py-8 sticky top-16 z-10 bg-white/80 backdrop-blur-md" style={{ backgroundColor: bgColor }}>

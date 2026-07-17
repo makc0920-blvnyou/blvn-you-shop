@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { useCart } from '@/context/CartContext'
 
 export default function ProductPage() {
   const params = useParams()
   const slug = params.slug as string
+  const { addItem, updateQuantity, items } = useCart()
   const [product, setProduct] = useState<any>(null)
   const [blocks, setBlocks] = useState<any[]>([])
   const [related, setRelated] = useState<any[]>([])
@@ -58,6 +60,18 @@ export default function ProductPage() {
   const images = product.images?.length ? product.images : product.image_url ? [product.image_url] : []
   const characteristicsBlock = blocks.find((b: any) => b.block_type === 'product_characteristics')
   const chars = characteristicsBlock?.content_json || product.characteristics || {}
+  const maxStock = product.stock_quantity || product.in_stock || 0
+
+  const handleAddToCart = () => {
+    if (!product.in_stock) return
+    const existing = items.find(i => i.id === product.id)
+    if (existing) {
+      updateQuantity(product.id, Math.min(existing.quantity + quantity, maxStock))
+      return
+    }
+    addItem(product)
+    setTimeout(() => updateQuantity(product.id, quantity), 0)
+  }
 
   return (
     <main className="py-8 md:py-12">
@@ -118,11 +132,11 @@ export default function ProductPage() {
             {/* Селектор количества + кнопка */}
             <div className="flex items-stretch gap-4 mb-6">
               <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-12 h-12 flex items-center justify-center text-lg font-bold text-gray-500 hover:bg-gray-50 transition-colors">−</button>
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={quantity <= 1} className="w-12 h-12 flex items-center justify-center text-lg font-bold text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">−</button>
                 <span className="w-14 h-12 flex items-center justify-center font-semibold text-lg border-x-2 border-gray-200">{quantity}</span>
-                <button onClick={() => setQuantity(quantity + 1)} className="w-12 h-12 flex items-center justify-center text-lg font-bold text-gray-500 hover:bg-gray-50 transition-colors">+</button>
+                <button onClick={() => setQuantity(quantity + 1)} disabled={quantity >= maxStock} className="w-12 h-12 flex items-center justify-center text-lg font-bold text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">+</button>
               </div>
-              <button className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold text-lg hover:from-pink-600 hover:to-purple-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">
+              <button onClick={handleAddToCart} disabled={!product.in_stock} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold text-lg hover:from-pink-600 hover:to-purple-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
                 Добавить в корзину
               </button>
             </div>

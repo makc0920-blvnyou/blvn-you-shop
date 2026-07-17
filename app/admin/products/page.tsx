@@ -26,15 +26,22 @@ interface Product {
   created_at: string
 }
 
-const categories = [
-  { value: 'kimonos', label: 'В кимоно' },
-  { value: 'special', label: 'Особенные' },
-  { value: 'accessories', label: 'Аксессуары' },
-]
+const labelToValue: Record<string, string> = {
+  'В кимоно': 'kimonos',
+  'Самураи': 'samurai',
+  'Ниндзя': 'ninja',
+  'Особенные': 'special',
+  'Аксессуары': 'accessories',
+}
 
 export default function AdminProductsPage() {
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<{ value: string; label: string }[]>([
+    { value: 'kimonos', label: 'В кимоно' },
+    { value: 'special', label: 'Особенные' },
+    { value: 'accessories', label: 'Аксессуары' },
+  ])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -111,10 +118,26 @@ export default function AdminProductsPage() {
         if (data.exchange_rate_byn_to_rub) setExchangeRate(data.exchange_rate_byn_to_rub)
       })
       .catch(() => {})
+    fetch('/api/blocks?page=catalog')
+      .then((res) => res.json())
+      .then((blocks) => {
+        const filtersBlock = blocks.find((b: any) => b.block_type === 'filters')
+        if (filtersBlock) {
+          const raw = typeof filtersBlock.content_json === 'string'
+            ? JSON.parse(filtersBlock.content_json)
+            : (filtersBlock.content_json || {})
+          const labels: string[] = raw.categories || []
+          const mapped = labels
+            .filter((l) => l !== 'Все' && labelToValue[l])
+            .map((l) => ({ value: labelToValue[l], label: l }))
+          if (mapped.length > 0) setCategories(mapped)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const openNew = () => {
-    setForm({ name: '', description: '', price: '', price_rub: '', category: 'kimonos', in_stock: true, stock_quantity: 0, image_url: '' })
+    setForm({ name: '', description: '', price: '', price_rub: '', category: categories[0]?.value || 'kimonos', in_stock: true, stock_quantity: 0, image_url: '' })
     setAdditionalImages([])
     setCharacteristics('{}')
     setEditingId(null)
