@@ -1,77 +1,72 @@
-import type { Metadata } from 'next'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'Политика конфиденциальности | blvn.you',
-}
+import { useState, useEffect } from 'react'
+import { SiteBlock } from '@/types'
 
 export default function PrivacyPage() {
+  const [blocks, setBlocks] = useState<SiteBlock[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchBlocks() {
+      try {
+        const response = await fetch('/api/blocks?page=privacy')
+        const data = await response.json()
+        setBlocks(data)
+        setLoading(false)
+      } catch (error) {
+        console.error('Error:', error)
+        setLoading(false)
+      }
+    }
+    fetchBlocks()
+  }, [])
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Загрузка...</div>
+  }
+
+  const sortedBlocks = [...blocks].sort((a, b) => a.order_index - b.order_index)
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
-      <h1 className="font-nunito font-bold text-3xl text-text-primary mb-8">
-        Политика обработки персональных данных
-      </h1>
+    <div className="min-h-screen bg-gradient-to-b from-pink-50/50 via-white to-purple-50/50">
+      {sortedBlocks.map(block => {
+        if (!block.is_visible) return null
 
-      <div className="prose prose-gray max-w-none space-y-6 text-text-secondary leading-relaxed">
-        <p>
-          Настоящая Политика обработки персональных данных (далее — Политика) разработана в соответствии с 
-          Законом Республики Беларусь от 7 мая 2021 г. № 99-З «О защите персональных данных» и определяет 
-          порядок обработки персональных данных пользователей интернет-магазина blvn.you.
-        </p>
+        if (block.block_type === 'hero') {
+          return (
+            <section key={block.id} className="relative py-16 md:py-24 bg-gradient-to-br from-pink-100 via-purple-50 to-pink-100 overflow-hidden">
+              <div className="absolute top-10 left-10 w-20 h-20 md:w-32 md:h-32 bg-pink-200/30 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-10 right-10 w-24 h-24 md:w-40 md:h-40 bg-purple-200/30 rounded-full blur-3xl"></div>
 
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">1. Общие положения</h2>
-        <p>
-          1.1. Оператором персональных данных является Индивидуальный предприниматель Попова Екатерина Валентиновна (УНП 291921539, юридический адрес: 224000, г. Брест, пер. Дружный 4-й, д. 15, телефон: +375 (29) 800-22-33, e-mail: blvnyou@yandex.ru) (далее — Оператор).<br />
-          1.2. Используя сайт blvn.you, Пользователь выражает свое согласие с условиями настоящей Политики.<br />
-          1.3. Если Пользователь не согласен с условиями Политики, он должен прекратить использование сайта.
-        </p>
+              <div className="container-custom relative z-10 text-center px-4">
+                <h1 className="font-nunito font-bold text-3xl md:text-5xl lg:text-6xl text-gray-900 mb-4 md:mb-6 leading-tight">
+                  {block.title}
+                </h1>
+                <p className="text-lg md:text-xl text-gray-700 font-medium">
+                  {block.content_json?.subtitle}
+                </p>
+              </div>
+            </section>
+          )
+        }
 
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">2. Какие данные собираются</h2>
-        <p>
-          2.1. При оформлении заказа на сайте собираются следующие персональные данные:<br />
-          - Фамилия, имя, отчество;<br />
-          - Номер контактного телефона;<br />
-          - Адрес доставки.
-        </p>
+        if (block.block_type === 'text_content') {
+          return (
+            <section key={block.id} className="py-12 md:py-20 bg-white">
+              <div className="container-custom max-w-4xl mx-auto px-4">
+                <div className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-2xl md:rounded-3xl p-6 md:p-12 shadow-lg">
+                  <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed whitespace-pre-line text-sm md:text-base">
+                    {block.content}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )
+        }
 
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">3. Цели обработки данных</h2>
-        <p>
-          3.1. Персональные данные обрабатываются исключительно в целях:<br />
-          - Оформления и выполнения заказов Пользователя;<br />
-          - Связи с Пользователем для уточнения деталей заказа;<br />
-          - Информирования о статусе заказа.
-        </p>
-
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">4. Срок хранения данных</h2>
-        <p>
-          4.1. Персональные данные хранятся в течение срока, необходимого для выполнения заказа, 
-          но не более 3 лет с момента последнего взаимодействия с Пользователем.
-        </p>
-
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">5. Права Пользователя</h2>
-        <p>
-          5.1. Пользователь имеет право:<br />
-          - На получение информации об обработке его персональных данных;<br />
-          - На отзыв согласия на обработку персональных данных;<br />
-          - На удаление своих персональных данных.<br />
-          5.2. Для реализации своих прав Пользователь может направить запрос на электронную почту: blvnyou@yandex.ru
-        </p>
-
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">6. Защита данных</h2>
-        <p>
-          6.1. Оператор принимает все необходимые организационные и технические меры для защиты 
-          персональных данных от несанкционированного доступа, изменения, раскрытия или уничтожения.
-        </p>
-
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">7. Заключительные положения</h2>
-        <p>
-          7.1. Оператор вправе вносить изменения в настоящую Политику без уведомления Пользователя.<br />
-          7.2. Новая версия Политики вступает в силу с момента ее размещения на сайте.
-        </p>
-
-        <p className="text-sm text-text-secondary mt-8">
-          Последнее обновление: 14 июля 2026 г.
-        </p>
-      </div>
+        return null
+      })}
     </div>
   )
 }

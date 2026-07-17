@@ -19,6 +19,39 @@ body {
   animation: float 6s ease-in-out infinite;
 }
 
+/* Плавные переходы */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Улучшенная типографика */
+body {
+  font-feature-settings: "kern" 1;
+  font-kerning: normal;
+}
+
+/* Улучшенные отступы для контейнера */
+.container-custom {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 640px) {
+  .container-custom {
+    padding: 0 1rem;
+  }
+
+  h1 {
+    font-size: 2rem !important;
+  }
+
+  h2 {
+    font-size: 1.5rem !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-float,
   .animate-pulse-gentle,

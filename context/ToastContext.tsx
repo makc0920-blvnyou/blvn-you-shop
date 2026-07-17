@@ -1,17 +1,16 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 
 interface Toast {
   id: number
   message: string
-  emoji?: string
-  type?: 'success' | 'info'
+  icon: string
+  type?: 'success' | 'info' | 'error'
 }
 
 interface ToastContextType {
-  showToast: (message: string, emoji?: string, type?: 'success' | 'info') => void
+  showToast: (message: string, icon?: string, type?: 'success' | 'info' | 'error') => void
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
@@ -21,36 +20,59 @@ let toastId = 0
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  const showToast = useCallback((message: string, emoji?: string, type?: 'success' | 'info') => {
+  const removeToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }, [])
+
+  const showToast = useCallback((message: string, icon?: string, type?: 'success' | 'info' | 'error') => {
     const id = ++toastId
-    setToasts((prev) => [...prev, { id, message, emoji, type }])
+    setToasts((prev) => [...prev, { id, message, icon: icon || '🐱', type }])
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))
-    }, 3000)
+    }, 3500)
   }, [])
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
-        <AnimatePresence>
-          {toasts.map((toast) => (
-            <motion.div
-              key={toast.id}
-              initial={{ opacity: 0, x: 100, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 100, scale: 0.9 }}
-              className={`flex items-center gap-3 px-5 py-3 rounded-card shadow-soft-lg text-sm font-semibold ${
-                toast.type === 'success'
-                  ? 'bg-success/90 text-white'
-                  : 'bg-surface text-text-primary'
-              }`}
+      <div
+        className="fixed top-24 right-4 z-[99999] space-y-3 max-w-sm w-full pointer-events-none px-4 md:px-0"
+        style={{ top: '100px' }}
+      >
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`
+              pointer-events-auto
+              bg-white rounded-xl shadow-2xl p-4
+              transform transition-all duration-300
+              flex items-start gap-3
+              border-l-4 ${
+                toast.type === 'error'
+                  ? 'border-red-500'
+                  : toast.type === 'success'
+                  ? 'border-green-500'
+                  : 'border-blvn-pink'
+              }
+              animate-slide-in-bottom
+            `}
+          >
+            <span className="text-2xl flex-shrink-0">{toast.icon}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-900 font-medium text-sm md:text-base break-words">
+                {toast.message}
+              </p>
+            </div>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="text-gray-400 hover:text-gray-600 transition flex-shrink-0 ml-2"
             >
-              <span className="text-xl">{toast.emoji || '🐱'}</span>
-              {toast.message}
-            </motion.div>
-          ))}
-        </AnimatePresence>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        ))}
       </div>
     </ToastContext.Provider>
   )

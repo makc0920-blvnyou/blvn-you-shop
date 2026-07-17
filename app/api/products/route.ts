@@ -1,53 +1,116 @@
 import { NextResponse } from 'next/server'
-import { getSupabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 
-export async function GET() {
-  try {
-    const supabase = getSupabase()
-    if (!supabase) {
-      return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
-    }
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false })
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const slug = searchParams.get('slug')
 
-    if (error) throw error
-    return NextResponse.json(data || [])
-  } catch (error: any) {
-    console.error('Products fetch error:', error)
+  let query = supabase
+    .from('products')
+    .select('*')
+
+  if (slug) {
+    query = query.eq('slug', slug)
+  } else {
+    query = query.order('created_at', { ascending: false })
+  }
+
+  const { data, error } = await query
+
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  return NextResponse.json(data)
 }
 
 export async function POST(request: Request) {
-  try {
-    const supabase = getSupabase()
-    if (!supabase) {
-      return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
-    }
+  const body = await request.json()
+  
+  if (!body.id) {
+    body.id = crypto.randomUUID()
+  }
+  
+  const { data: product, error } = await supabase
+    .from('products')
+    .insert(body)
+    .select()
+    .single()
 
-    const body = await request.json()
-
-    const { data, error } = await supabase
-      .from('products')
-      .insert({
-        name: body.name,
-        description: body.description,
-        price: body.price,
-        image_url: body.image_url || '',
-        images: body.images || [],
-        category: body.category || 'kimonos',
-        in_stock: body.in_stock ?? true,
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-    return NextResponse.json(data, { status: 201 })
-  } catch (error: any) {
-    console.error('Product create error:', error)
+  if (error) {
+    console.error('Error creating product:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  // Автоматически создаём блоки для товара
+  const { error: blocksError } = await supabase
+    .from('site_blocks')
+    .insert([
+      {
+        block_type: 'product_description',
+        title: 'Описание',
+        content: body.description || '',
+        content_json: {},
+        order_index: 1,
+        page_id: `product_${product.id}`,
+        is_visible: true
+      },
+      {
+        block_type: 'product_characteristics',
+        title: 'Характеристики',
+        content: null,
+        content_json: body.characteristics || {},
+        order_index: 2,
+        page_id: `product_${product.id}`,
+        is_visible: true
+      }
+    ])
+
+  if (blocksError) {
+    console.error('Error creating product blocks:', blocksError)
+  }
+
+  return NextResponse.json(product)
+}
+
+export async function PUT(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get('id')
+  const body = await request.json()
+
+  delete body.id
+
+  const { data, error } = await supabase
+    .from('products')
+    .update(body)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json(data)
+}
+
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get('id')
+
+  const { error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true })
 }

@@ -1,69 +1,72 @@
-import type { Metadata } from 'next'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'Возврат и обмен | blvn.you',
-}
+import { useState, useEffect } from 'react'
+import { SiteBlock } from '@/types'
 
 export default function ReturnsPage() {
+  const [blocks, setBlocks] = useState<SiteBlock[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchBlocks() {
+      try {
+        const response = await fetch('/api/blocks?page=returns')
+        const data = await response.json()
+        setBlocks(data)
+        setLoading(false)
+      } catch (error) {
+        console.error('Error:', error)
+        setLoading(false)
+      }
+    }
+    fetchBlocks()
+  }, [])
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Загрузка...</div>
+  }
+
+  const sortedBlocks = [...blocks].sort((a, b) => a.order_index - b.order_index)
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
-      <h1 className="font-nunito font-bold text-3xl text-text-primary mb-8">
-        Правила возврата и обмена товаров
-      </h1>
+    <div className="min-h-screen bg-gradient-to-b from-purple-50/50 via-white to-pink-50/50">
+      {sortedBlocks.map(block => {
+        if (!block.is_visible) return null
 
-      <div className="space-y-6 text-text-secondary leading-relaxed">
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">1. Общие положения</h2>
-        <p>
-          1.1. Настоящие правила разработаны в соответствии с Законом Республики Беларусь 
-          «О защите прав потребителей» и другими нормативными правовыми актами.
-        </p>
+        if (block.block_type === 'hero') {
+          return (
+            <section key={block.id} className="relative py-16 md:py-24 bg-gradient-to-br from-purple-100 via-pink-50 to-purple-100 overflow-hidden">
+              <div className="absolute top-10 right-10 w-20 h-20 md:w-32 md:h-32 bg-pink-200/30 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-10 left-10 w-24 h-24 md:w-40 md:h-40 bg-purple-200/30 rounded-full blur-3xl"></div>
 
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">2. Товары надлежащего качества</h2>
-        <p>
-          2.1. Товары, приобретенные в интернет-магазине blvn.you, являются изделиями 
-          ручной работы, изготовленными под индивидуальный заказ.<br />
-          2.2. В соответствии с законодательством Республики Беларусь, изделия ручной работы, 
-          изготовленные под индивидуальный заказ, надлежащего качества возврату и обмену 
-          <strong> не подлежат</strong>.
-        </p>
+              <div className="container-custom relative z-10 text-center px-4">
+                <h1 className="font-nunito font-bold text-3xl md:text-5xl lg:text-6xl text-gray-900 mb-4 md:mb-6 leading-tight">
+                  {block.title}
+                </h1>
+                <p className="text-lg md:text-xl text-gray-700 font-medium">
+                  {block.content_json?.subtitle}
+                </p>
+              </div>
+            </section>
+          )
+        }
 
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">3. Товары ненадлежащего качества</h2>
-        <p>
-          3.1. Если при получении заказа Покупатель обнаружил производственный брак (сколы, 
-          повреждения, несоответствие описанию), он имеет право:<br />
-          - Обменять товар на аналогичный надлежащего качества;<br />
-          - Вернуть товар и получить денежные средства.<br />
-          3.2. Для возврата или обмена товара ненадлежащего качества необходимо связаться с 
-          Продавцом в течение 3 дней с момента получения заказа.
-        </p>
+        if (block.block_type === 'text_content') {
+          return (
+            <section key={block.id} className="py-12 md:py-20 bg-white">
+              <div className="container-custom max-w-4xl mx-auto px-4">
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl md:rounded-3xl p-6 md:p-12 shadow-lg">
+                  <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed whitespace-pre-line text-sm md:text-base">
+                    {block.content}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )
+        }
 
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">4. Порядок возврата</h2>
-        <p>
-          4.1. Для оформления возврата Покупатель должен:<br />
-          - Связаться с Продавцом по телефону или электронной почте;<br />
-          - Предоставить фотографии, подтверждающие брак;<br />
-          - Отправить товар обратно за счет Продавца (в случае брака).
-        </p>
-
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">5. Сроки возврата денежных средств</h2>
-        <p>
-          5.1. Возврат денежных средств осуществляется в течение 7 рабочих дней с момента 
-          получения Продавцом возвращенного товара и подтверждения факта брака.
-        </p>
-
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">6. Контактная информация</h2>
-        <p>
-          По всем вопросам возврата и обмена обращайтесь к Продавцу:<br />
-          Индивидуальный предприниматель Попова Екатерина Валентиновна<br />
-          Телефон: +375 (29) 800-22-33<br />
-          E-mail: blvnyou@yandex.ru<br />
-          Юридический адрес: 224000, г. Брест, пер. Дружный 4-й, д. 15
-        </p>
-
-        <p className="text-sm mt-8">
-          Последнее обновление: 14 июля 2026 г.
-        </p>
-      </div>
+        return null
+      })}
     </div>
   )
 }

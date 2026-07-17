@@ -5,129 +5,160 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCart } from '@/context/CartContext'
-import { formatPrice, unformatPhone } from '@/lib/utils'
+import { useToast } from '@/context/ToastContext'
+import { formatPrice } from '@/lib/utils'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Stickers from '@/components/Stickers'
-import { DeliveryService } from '@/types'
 
-const deliveryOptions = [
-  { value: 'evropochta' as DeliveryService, label: 'Европочта', icon: '📬', desc: 'Доставка до отделения' },
-  { value: 'cdek' as DeliveryService, label: 'СДЭК', icon: '📦', desc: 'Доставка до пункта выдачи или двери' },
-  { value: 'belpost' as DeliveryService, label: 'Белпочта', desc: 'Доставка почтой по адресу', icon: '✉️' },
+const deliveryMethods = {
+  belarus: [
+    { value: 'europochta', label: 'Европочта', desc: '3-5 дней, от 5 BYN' },
+    { value: 'cdek', label: 'СДЭК', desc: '3-7 дней, от 7 BYN' },
+    { value: 'belpochta', label: 'Белпочта', desc: '5-10 дней, от 4 BYN' },
+    { value: 'pickup', label: 'Самовывоз (Брест)', desc: 'Бесплатно, по договоренности' },
+  ],
+  russia: [
+    { value: 'cdek_ru', label: 'СДЭК (Россия)', desc: '7-14 дней, стоимость индивидуально' },
+  ],
+}
+
+const paymentMethods = [
+  { value: 'erip', label: 'Оплата через ЕРИП', desc: 'Для клиентов из Беларуси' },
+  { value: 'card', label: 'Оплата картой', desc: 'Visa, Mastercard, Белкарт' },
+  { value: 'transfer', label: 'Банковский перевод', desc: 'Для клиентов из России и Беларуси' },
+  { value: 'cash', label: 'Наличные при получении', desc: 'Только для самовывоза' },
 ]
+
+const getDeliveryCost = (method: string) => {
+  if (method === 'pickup') return 0
+  if (method === 'europochta') return 5
+  if (method === 'cdek') return 7
+  if (method === 'belpochta') return 4
+  return 0
+}
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, totalAmount, clearCart } = useCart()
+  const { items, total: totalAmount, clearCart } = useCart()
+  const { showToast } = useToast()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
 
-  const [form, setForm] = useState({
-    customerName: '',
-    customerPhone: '+375 ',
-    deliveryService: '' as DeliveryService | '',
-    city: '',
-    officeNumber: '',
-    address: '',
-    index: '',
-    pickupPoint: '',
-  })
+  const [customerName, setCustomerName] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('+375')
+  const [deliveryCountry, setDeliveryCountry] = useState('belarus')
+  const [deliveryMethod, setDeliveryMethod] = useState('europochta')
+  const [paymentMethod, setPaymentMethod] = useState('erip')
+  const [address, setAddress] = useState('')
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [agreedToPrivacy, setAgreedToPrivacy] = useState(false)
 
-  const updateField = (field: string, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
-    if (errors[field]) {
-      setErrors((prev) => {
-        const copy = { ...prev }
-        delete copy[field]
-        return copy
-      })
+  const deliveryCost = getDeliveryCost(deliveryMethod)
+  const finalTotal = totalAmount + deliveryCost
+
+  const formatBelarusPhone = (phone: string) => {
+    const digits = phone.replace(/\D/g, '')
+    if (digits.startsWith('375')) {
+      let formatted = '+375 ('
+      if (digits.length > 3) formatted += digits.substring(3, 5)
+      if (digits.length >= 5) formatted += ') '
+      if (digits.length > 5) formatted += digits.substring(5, 8)
+      if (digits.length >= 8) formatted += '-'
+      if (digits.length > 8) formatted += digits.substring(8, 10)
+      if (digits.length >= 10) formatted += '-'
+      if (digits.length > 10) formatted += digits.substring(10, 12)
+      return formatted
     }
+    return phone
+  }
+
+  const formatRussianPhone = (phone: string) => {
+    const digits = phone.replace(/\D/g, '')
+    if (digits.startsWith('7')) {
+      let formatted = '+7 ('
+      if (digits.length > 1) formatted += digits.substring(1, 4)
+      if (digits.length >= 4) formatted += ') '
+      if (digits.length > 4) formatted += digits.substring(4, 7)
+      if (digits.length >= 7) formatted += '-'
+      if (digits.length > 7) formatted += digits.substring(7, 9)
+      if (digits.length >= 9) formatted += '-'
+      if (digits.length > 9) formatted += digits.substring(9, 11)
+      return formatted
+    }
+    return phone
+  }
+
+  const formatPhone = (value: string, country: string) => {
+    const clean = value.replace(/[^\d+]/g, '')
+    if (country === 'russia') {
+      if (clean.startsWith('+375')) {
+        const digits = clean.replace('+375', '7')
+        return formatRussianPhone(digits)
+      }
+      if (!clean.startsWith('+7')) return '+7'
+      return formatRussianPhone(clean)
+    } else {
+      if (clean.startsWith('+7')) {
+        const digits = clean.replace('+7', '375')
+        return formatBelarusPhone(digits)
+      }
+      if (!clean.startsWith('+375')) return '+375'
+      return formatBelarusPhone(clean)
+    }
+  }
+
+  const validatePhone = (phone: string, country: string) => {
+    const digits = phone.replace(/\D/g, '')
+    if (country === 'russia') {
+      return digits.length === 11 && digits.startsWith('7')
+    }
+    return digits.length === 12 && digits.startsWith('375')
   }
 
   const validateStep1 = () => {
     const errs: Record<string, string> = {}
-    if (!form.deliveryService) errs.deliveryService = 'Выберите способ доставки'
+    if (!deliveryMethod) errs.deliveryMethod = 'Выберите способ доставки'
+    if (!paymentMethod) errs.paymentMethod = 'Выберите способ оплаты'
+    if (deliveryMethod !== 'pickup' && !address.trim()) errs.address = 'Укажите адрес доставки'
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
 
   const validateStep2 = () => {
     const errs: Record<string, string> = {}
-    if (!form.customerName.trim()) errs.customerName = 'Введите ФИО'
-    if (unformatPhone(form.customerPhone).length < 12) errs.customerPhone = 'Введите корректный телефон'
-
-    if (form.deliveryService === 'evropochta') {
-      if (!form.city.trim()) errs.city = 'Укажите город'
-      if (!form.officeNumber.trim()) errs.officeNumber = 'Укажите номер отделения'
-    } else if (form.deliveryService === 'cdek') {
-      if (!form.city.trim()) errs.city = 'Укажите город'
-      if (!form.pickupPoint.trim() && !form.address.trim()) {
-        errs.pickupPoint = 'Укажите адрес или пункт выдачи'
-      }
-    } else if (form.deliveryService === 'belpost') {
-      if (!form.address.trim()) errs.address = 'Укажите полный адрес'
-      if (!form.index.trim()) errs.index = 'Укажите индекс'
-    }
-
+    if (!customerName.trim()) errs.customerName = 'Введите ФИО'
+    if (!validatePhone(customerPhone, deliveryCountry)) errs.customerPhone = 'Введите корректный номер телефона'
     setErrors(errs)
     return Object.keys(errs).length === 0
-  }
-
-  const handlePhoneChange = (value: string) => {
-    const digits = value.replace(/\D/g, '')
-    if (!digits.startsWith('375')) {
-      updateField('customerPhone', '+375 ')
-      return
-    }
-    let formatted = '+375 ('
-    if (digits.length > 3) formatted += digits.substring(3, 5)
-    if (digits.length >= 5) formatted += ') '
-    if (digits.length > 5) formatted += digits.substring(5, 8)
-    if (digits.length >= 8) formatted += '-'
-    if (digits.length > 8) formatted += digits.substring(8, 10)
-    if (digits.length >= 10) formatted += '-'
-    if (digits.length > 10) formatted += digits.substring(10, 12)
-    updateField('customerPhone', formatted)
   }
 
   const handleSubmit = async () => {
     if (!validateStep2()) return
     if (!agreedToPrivacy) {
-      alert('Пожалуйста, дайте согласие на обработку персональных данных')
+      showToast('Пожалуйста, дайте согласие на обработку персональных данных', '')
       return
     }
     setLoading(true)
 
-    const deliveryAddress = form.deliveryService === 'evropochta'
-      ? `г. ${form.city}, отделение ${form.officeNumber}`
-      : form.deliveryService === 'cdek'
-      ? `г. ${form.city}, ${form.pickupPoint || form.address}`
-      : `${form.address}, ${form.index}`
-
     const orderData = {
-      customerName: form.customerName,
-      customerPhone: form.customerPhone,
-      deliveryService: form.deliveryService,
-      deliveryAddress,
-      deliveryDetails: {
-        city: form.city,
-        officeNumber: form.officeNumber,
-        address: form.address,
-        index: form.index,
-        pickupPoint: form.pickupPoint,
-      },
+      customerName,
+      customerPhone,
+      deliveryCountry,
+      deliveryMethod,
+      paymentMethod,
+      address: deliveryMethod === 'pickup' ? '' : address,
+      deliveryCost,
       items: items.map((item) => ({
         id: item.id,
         name: item.name,
         price: item.price,
+        price_rub: item.price_rub,
         quantity: item.quantity,
         image: item.image_url,
       })),
-      totalAmount,
+      totalAmount: finalTotal,
     }
 
     try {
@@ -147,73 +178,9 @@ export default function CheckoutPage() {
       router.push(`/thanks?id=${order.id}`)
     } catch (err: any) {
       console.error(err)
-      alert(err.message || 'Произошла ошибка при оформлении заказа. Попробуйте еще раз.')
+      showToast(err.message || 'Произошла ошибка при оформлении заказа. Попробуйте еще раз.', '')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const getDeliveryFields = () => {
-    switch (form.deliveryService) {
-      case 'evropochta':
-        return (
-          <>
-            <Input
-              label="Город"
-              value={form.city}
-              onChange={(e) => updateField('city', e.target.value)}
-              error={errors.city}
-              placeholder="Минск"
-            />
-            <Input
-              label="Номер отделения"
-              value={form.officeNumber}
-              onChange={(e) => updateField('officeNumber', e.target.value)}
-              error={errors.officeNumber}
-              placeholder="123"
-            />
-          </>
-        )
-      case 'cdek':
-        return (
-          <>
-            <Input
-              label="Город"
-              value={form.city}
-              onChange={(e) => updateField('city', e.target.value)}
-              error={errors.city}
-              placeholder="Минск"
-            />
-            <Input
-              label="Адрес пункта выдачи или до двери"
-              value={form.pickupPoint || form.address}
-              onChange={(e) => updateField('pickupPoint', e.target.value)}
-              error={errors.pickupPoint}
-              placeholder="ул. Примерная, д. 10"
-            />
-          </>
-        )
-      case 'belpost':
-        return (
-          <>
-            <Input
-              label="Полный адрес"
-              value={form.address}
-              onChange={(e) => updateField('address', e.target.value)}
-              error={errors.address}
-              placeholder="г. Минск, ул. Примерная, д. 10, кв. 5"
-            />
-            <Input
-              label="Индекс"
-              value={form.index}
-              onChange={(e) => updateField('index', e.target.value)}
-              error={errors.index}
-              placeholder="220000"
-            />
-          </>
-        )
-      default:
-        return null
     }
   }
 
@@ -259,28 +226,128 @@ export default function CheckoutPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <h2 className="font-nunito font-bold text-xl mb-4">Выберите способ доставки</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                  {deliveryOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => updateField('deliveryService', opt.value)}
-                      className={`p-4 rounded-card border-2 text-left transition-all duration-300 ${
-                        form.deliveryService === opt.value
-                          ? 'border-primary bg-primary/5'
-                          : 'border-gray-200 bg-surface hover:border-primary/50'
-                      }`}
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Страна доставки *
+                    </label>
+                    <select
+                      value={deliveryCountry}
+                      onChange={(e) => {
+                        const newCountry = e.target.value
+                        setDeliveryCountry(newCountry)
+                        setDeliveryMethod(newCountry === 'belarus' ? 'europochta' : 'cdek_ru')
+                        setCustomerPhone(newCountry === 'belarus' ? '+375' : '+7')
+                        setAddress('')
+                      }}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blvn-pink/50 bg-white"
                     >
-                      <div className="text-3xl mb-2">{opt.icon}</div>
-                      <div className="font-nunito font-bold text-text-primary">{opt.label}</div>
-                      <div className="text-sm text-text-secondary">{opt.desc}</div>
-                    </button>
-                  ))}
+                      <option value="belarus">🇧🇾 Беларусь</option>
+                      <option value="russia">🇷🇺 Россия</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Способ доставки *
+                    </label>
+                    <div className="space-y-2">
+                      {deliveryMethods[deliveryCountry as keyof typeof deliveryMethods].map((method) => (
+                        <label
+                          key={method.value}
+                          className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition ${
+                            deliveryMethod === method.value
+                              ? 'border-blvn-pink bg-blvn-pink/5'
+                              : 'border-gray-200 hover:border-blvn-pink'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="delivery"
+                            value={method.value}
+                            checked={deliveryMethod === method.value}
+                            onChange={(e) => setDeliveryMethod(e.target.value)}
+                            className="mr-3 accent-blvn-pink"
+                          />
+                          <div>
+                            <div className="font-semibold">{method.label}</div>
+                            <div className="text-sm text-gray-600">{method.desc}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {deliveryMethod !== 'pickup' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Адрес доставки *
+                      </label>
+                      <input
+                        type="text"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder={deliveryCountry === 'belarus' ? 'Город, улица, дом, квартира' : 'Город, индекс, улица, дом'}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blvn-pink/50"
+                      />
+                      {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+                    </div>
+                  )}
+
+                  {deliveryMethod === 'pickup' && (
+                    <div className="p-4 bg-blvn-pink/10 rounded-xl border border-blvn-pink/30">
+                      <p className="text-sm text-gray-700">
+                        🏪 Самовывоз возможен по предварительной договоренности в Бресте.
+                        После оформления заказа мы свяжемся с вами для уточнения времени и места встречи.
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Способ оплаты *
+                    </label>
+                    <div className="space-y-2">
+                      {paymentMethods.map((method) => {
+                        if (method.value === 'cash' && deliveryMethod !== 'pickup') return null
+                        return (
+                          <label
+                            key={method.value}
+                            className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition ${
+                              paymentMethod === method.value
+                                ? 'border-blvn-pink bg-blvn-pink/5'
+                                : 'border-gray-200 hover:border-blvn-pink'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="payment"
+                              value={method.value}
+                              checked={paymentMethod === method.value}
+                              onChange={(e) => setPaymentMethod(e.target.value)}
+                              className="mr-3 accent-blvn-pink"
+                            />
+                            <div>
+                              <div className="font-semibold">{method.label}</div>
+                              <div className="text-sm text-gray-600">{method.desc}</div>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <p className="text-sm text-gray-700">
+                      💡 После оформления заказа мы пришлем вам реквизиты для оплаты.
+                      Заказ будет отправлен после подтверждения оплаты.
+                    </p>
+                  </div>
                 </div>
-                {errors.deliveryService && (
-                  <p className="text-red-500 text-sm mb-4">{errors.deliveryService}</p>
-                )}
-                <Button size="lg" fullWidth onClick={() => validateStep1() && setStep(2)}>
+
+                {errors.deliveryMethod && <p className="text-red-500 text-sm mt-4">{errors.deliveryMethod}</p>}
+
+                <Button size="lg" fullWidth className="mt-6" onClick={() => validateStep1() && setStep(2)}>
                   Далее
                 </Button>
               </motion.div>
@@ -297,19 +364,37 @@ export default function CheckoutPage() {
                 <div className="space-y-4 mb-6">
                   <Input
                     label="ФИО"
-                    value={form.customerName}
-                    onChange={(e) => updateField('customerName', e.target.value)}
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
                     error={errors.customerName}
                     placeholder="Иванов Иван Иванович"
                   />
-                  <Input
-                    label="Телефон"
-                    value={form.customerPhone}
-                    onChange={(e) => handlePhoneChange(e.target.value)}
-                    error={errors.customerPhone}
-                    placeholder="+375 (29) 123-45-67"
-                  />
-                  {getDeliveryFields()}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Телефон *
+                    </label>
+                    <input
+                      type="tel"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(formatPhone(e.target.value, deliveryCountry))}
+                      placeholder={deliveryCountry === 'belarus' ? '+375 (29) 123-45-67' : '+7 (999) 123-45-67'}
+                      className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blvn-pink/50 ${
+                        customerPhone && !validatePhone(customerPhone, deliveryCountry)
+                          ? 'border-red-500'
+                          : 'border-gray-200'
+                      }`}
+                    />
+                    {errors.customerPhone && (
+                      <p className="text-sm text-red-500 mt-1">{errors.customerPhone}</p>
+                    )}
+                    {customerPhone && !validatePhone(customerPhone, deliveryCountry) && !errors.customerPhone && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {deliveryCountry === 'belarus'
+                          ? 'Введите белорусский номер: +375 (XX) XXX-XX-XX'
+                          : 'Введите российский номер: +7 (XXX) XXX-XX-XX'}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => setStep(1)}>
@@ -337,7 +422,7 @@ export default function CheckoutPage() {
                       <div className="flex items-center gap-3">
                         <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
                           <Image
-                            src={(item as any).image_url || (item as any).image || '/images/kotik-1.jpg'}
+                            src={item.image_url || '/images/kotik-1.jpg'}
                             alt={item.name}
                             fill
                             className="object-cover"
@@ -356,26 +441,39 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                <div className="bg-surface rounded-card shadow-soft p-4 mb-6">
+                <div className="bg-surface rounded-card shadow-soft p-4 mb-6 space-y-2">
                   <h3 className="font-nunito font-bold text-sm mb-2">Данные доставки</h3>
+                  <p className="text-sm text-text-secondary">{customerName} | {customerPhone}</p>
                   <p className="text-sm text-text-secondary">
-                    {form.customerName} | {form.customerPhone}
+                    {deliveryCountry === 'belarus' ? '🇧🇾' : '🇷🇺'} {deliveryCountry === 'belarus' ? 'Беларусь' : 'Россия'}
                   </p>
-                  <p className="text-sm text-text-secondary mt-1">
-                    {deliveryOptions.find((o) => o.value === form.deliveryService)?.label}: { }
-                    {form.deliveryService === 'evropochta'
-                      ? `г. ${form.city}, отделение ${form.officeNumber}`
-                      : form.deliveryService === 'cdek'
-                      ? `г. ${form.city}, ${form.pickupPoint}`
-                      : `${form.address}, ${form.index}`}
+                  <p className="text-sm text-text-secondary">
+                    📦 {deliveryMethods[deliveryCountry as keyof typeof deliveryMethods].find((m) => m.value === deliveryMethod)?.label}
+                  </p>
+                  {deliveryMethod !== 'pickup' && address && (
+                    <p className="text-sm text-text-secondary">📍 {address}</p>
+                  )}
+                  {deliveryMethod === 'pickup' && (
+                    <p className="text-sm text-text-secondary">🏪 Самовывоз (Брест)</p>
+                  )}
+                  <p className="text-sm text-text-secondary">
+                    💳 {paymentMethods.find((m) => m.value === paymentMethod)?.label}
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between mb-6">
-                  <span className="font-nunito font-bold text-xl">Итого:</span>
-                  <span className="font-nunito font-bold text-2xl text-primary">
-                    {formatPrice(totalAmount)}
-                  </span>
+                <div className="bg-surface rounded-card shadow-soft p-4 mb-6 space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span>Товары:</span>
+                    <span>{formatPrice(totalAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Доставка:</span>
+                    <span>{deliveryMethod === 'pickup' ? 'Бесплатно' : `от ${formatPrice(deliveryCost)}`}</span>
+                  </div>
+                  <div className="flex justify-between font-nunito font-bold text-lg border-t pt-2 mt-2">
+                    <span>Итого:</span>
+                    <span className="text-primary">{formatPrice(finalTotal)}</span>
+                  </div>
                 </div>
 
                 <label className="flex items-start gap-2 text-sm text-text-secondary cursor-pointer mt-4 mb-4">

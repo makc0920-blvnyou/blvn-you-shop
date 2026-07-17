@@ -1,87 +1,89 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import Image from 'next/image'
-import Link from 'next/link'
-import Button from '@/components/ui/Button'
+import { useState, useEffect } from 'react'
 
 export default function AboutPage() {
+  const [blocks, setBlocks] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchBlocks() {
+      try {
+        const response = await fetch('/api/blocks?page=about')
+        const data = await response.json()
+        console.log('About blocks:', data)
+        setBlocks(data)
+        setLoading(false)
+      } catch (error) {
+        console.error('Error:', error)
+        setLoading(false)
+      }
+    }
+    fetchBlocks()
+  }, [])
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div></div>
+  }
+
   return (
-    <div>
-      <section className="relative h-[50vh] min-h-[400px] flex items-center justify-center overflow-hidden">
-        <Image
-          src="/images/kotiki-s-sakuroi.jpg"
-          alt="Котики blvn.you"
-          fill
-          className="object-cover object-center"
-          priority
-          quality={85}
-          sizes="100vw"
-        />
-        <div className="absolute inset-0 bg-white/70 backdrop-blur-sm" />
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 text-center px-4 max-w-2xl"
-        >
-          <h1 className="font-nunito font-extrabold text-4xl md:text-5xl text-blvn-pink mb-4">
-            О нас
-          </h1>
-          <p className="text-lg text-text-secondary">
-            История бренда, который создаёт дофаминовые мелочи для души
-          </p>
-        </motion.div>
-      </section>
+    <main>
+      {blocks.map((block) => {
+        const style = block.content_json?.style || {}
+        const bgColor = style.background_gradient || style.background_color || '#fdf2f8'
+        const textColor = style.text_color || '#1f2937'
+        const accentColor = style.accent_color || '#ec4899'
 
-      <section className="max-w-3xl mx-auto px-4 py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="space-y-8 text-text-secondary leading-relaxed"
-        >
-          <div>
-            <h2 className="font-nunito font-bold text-2xl text-text-primary mb-4">
-              Как всё началось
-            </h2>
-            <p>
-              blvn.you родился из любви к японской эстетике и котикам. Всё началось с маленькой 
-              мастерской, где создавались первые брелоки. Каждый котик в кимоно 
-              — это маленькое произведение искусства, в которое вложена душа.
-            </p>
-          </div>
+        if (block.block_type === 'hero') {
+          return (
+            <section key={block.id} className="py-20 md:py-32 text-center" style={{ backgroundColor: bgColor, color: textColor }}>
+              <div className="container mx-auto px-4">
+                <h1 className="text-4xl md:text-5xl font-bold mb-4">{block.title}</h1>
+                {block.content_json?.subtitle && (
+                  <p className="text-xl opacity-90 max-w-2xl mx-auto">{block.content_json.subtitle}</p>
+                )}
+              </div>
+            </section>
+          )
+        }
 
-          <div>
-            <h2 className="font-nunito font-bold text-2xl text-text-primary mb-4">
-              Наша философия
-            </h2>
-            <p>
-              Мы верим, что в каждой мелочи может быть магия. Наши брелоки — это не просто аксессуары, 
-              это маленькие талисманы, которые дарят улыбку и тепло. Каждый котик уникален, как и его 
-              будущий владелец.
-            </p>
-          </div>
+        if (block.block_type === 'story') {
+          return (
+            <section key={block.id} className="py-16 md:py-24" style={{ backgroundColor: bgColor, color: textColor }}>
+              <div className="container mx-auto px-4 max-w-4xl">
+                <h2 className="text-3xl font-bold mb-8 text-center">{block.title}</h2>
+                {block.content && (
+                  <div className="prose prose-lg max-w-none text-center leading-relaxed">
+                    <p className="whitespace-pre-line">{block.content}</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )
+        }
 
-          <div>
-            <h2 className="font-nunito font-bold text-2xl text-text-primary mb-4">
-              Ручная работа
-            </h2>
-            <p>
-              Каждый брелок создаётся вручную. Мы уделяем внимание каждой детали: от рисунка на кимоно до выражения мордочки. 
-              Именно поэтому каждый котик получается особенным.
-            </p>
-          </div>
+        if (block.block_type === 'values') {
+          const values = Array.isArray(block.content_json) ? block.content_json : []
+          return (
+            <section key={block.id} className="py-16 md:py-24" style={{ backgroundColor: bgColor, color: textColor }}>
+              <div className="container mx-auto px-4">
+                <h2 className="text-3xl font-bold mb-12 text-center">{block.title}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                  {values.map((item: any, i: number) => (
+                    <div key={i} className="p-8 rounded-2xl bg-white/70 backdrop-blur-md border-2 border-white/50 text-center shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                      <div className="text-5xl mb-4">{item.icon}</div>
+                      <h3 className="text-xl font-bold mb-3" style={{ color: textColor }}>{item.title}</h3>
+                      <p className="text-base opacity-90 leading-relaxed">{item.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )
+        }
 
-          <div className="pt-8 text-center">
-            <p className="text-lg mb-6">
-              Готовы найти своего котика? 🐱
-            </p>
-            <Link href="/catalog">
-              <Button size="lg">Смотреть каталог</Button>
-            </Link>
-          </div>
-        </motion.div>
-      </section>
-    </div>
+        return null
+      })}
+    </main>
   )
 }

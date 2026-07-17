@@ -1,72 +1,162 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function AdminLoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    checkAuth()
+  }, [])
+
+  const checkAuth = async () => {
+    try {
+      const res = await fetch('/api/auth/check', {
+        method: 'GET',
+        credentials: 'include'
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        const redirect = searchParams.get('redirect')
+        if (data.role === 'manager') {
+          router.push(redirect || '/admin/products')
+        } else if (data.role === 'content') {
+          router.push(redirect || '/admin/seo')
+        }
+      }
+    } catch (err) {
+      // Не авторизован
+    }
+  }
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
     try {
-      const res = await fetch('/api/admin/login', {
+      console.log('🔑 Attempting login with:', { username })
+
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
+        credentials: 'include'
       })
 
-      if (!res.ok) {
-        setError('Неверный пароль')
-        return
-      }
+      const data = await res.json()
+      console.log('📥 Login response:', data)
 
-      router.push('/admin/products')
-    } catch {
-      setError('Ошибка соединения')
+      if (res.ok) {
+        const redirect = searchParams.get('redirect')
+        if (data.role === 'manager') {
+          console.log('✅ Redirecting to /admin/products')
+          router.push(redirect || '/admin/products')
+        } else {
+          console.log('✅ Redirecting to /admin/seo')
+          router.push(redirect || '/admin/seo')
+        }
+      } else {
+        setError(data.error || 'Неверный логин или пароль')
+      }
+    } catch (err) {
+      console.error('❌ Login error:', err)
+      setError('Ошибка сети. Попробуйте снова.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-surface rounded-card shadow-soft p-8 w-full max-w-md"
-      >
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50 px-4">
+      <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border-2 border-pink-200">
         <div className="text-center mb-6">
-          <span className="text-4xl">🔐</span>
-          <h1 className="font-nunito font-bold text-2xl text-text-primary mt-2">
-            Вход в админ-панель
-          </h1>
+          <div className="text-5xl mb-3">🐱</div>
+          <h1 className="text-2xl font-bold text-gray-900">Вход в панель</h1>
+          <p className="text-sm text-gray-500 mt-1">blvn.you admin</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Пароль"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Введите секретный пароль"
-          />
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Логин
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.trim())}
+              placeholder="manager или content"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blvn-pink/50 focus:border-transparent"
+              required
+              autoComplete="username"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Пароль
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blvn-pink/50 focus:border-transparent"
+              required
+              autoComplete="current-password"
+            />
+          </div>
+
           {error && (
-            <p className="text-red-500 text-sm text-center">{error}</p>
+            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-200">
+              {error}
+            </div>
           )}
-          <Button type="submit" fullWidth loading={loading}>
-            Войти
-          </Button>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-blvn-pink text-white rounded-xl hover:bg-blvn-pink/90 font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? '⏳ Вход...' : '🔐 Войти'}
+          </button>
         </form>
-      </motion.div>
+
+        <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+          <p className="text-xs font-semibold text-gray-700 mb-2">📋 Данные для входа:</p>
+          <div className="text-xs text-gray-600 space-y-2">
+            <div className="bg-white p-2 rounded border border-gray-200">
+              <span className="font-mono font-bold text-pink-600">manager</span>
+              <span className="mx-2">/</span>
+              <span className="text-gray-500">Управление товарами</span>
+            </div>
+            <div className="bg-white p-2 rounded border border-gray-200">
+              <span className="font-mono font-bold text-purple-600">content</span>
+              <span className="mx-2">/</span>
+              <span className="text-gray-500">SEO и контент</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
+        <p className="text-gray-500">Загрузка...</p>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }

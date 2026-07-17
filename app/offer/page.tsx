@@ -1,75 +1,72 @@
-import type { Metadata } from 'next'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'Публичная оферта | blvn.you',
-}
+import { useState, useEffect } from 'react'
+import { SiteBlock } from '@/types'
 
 export default function OfferPage() {
+  const [blocks, setBlocks] = useState<SiteBlock[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchBlocks() {
+      try {
+        const response = await fetch('/api/blocks?page=offer')
+        const data = await response.json()
+        setBlocks(data)
+        setLoading(false)
+      } catch (error) {
+        console.error('Error:', error)
+        setLoading(false)
+      }
+    }
+    fetchBlocks()
+  }, [])
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Загрузка...</div>
+  }
+
+  const sortedBlocks = [...blocks].sort((a, b) => a.order_index - b.order_index)
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
-      <h1 className="font-nunito font-bold text-3xl text-text-primary mb-8">
-        Публичная оферта интернет-магазина blvn.you
-      </h1>
+    <div className="min-h-screen bg-gradient-to-b from-purple-50/50 via-white to-pink-50/50">
+      {sortedBlocks.map(block => {
+        if (!block.is_visible) return null
 
-      <div className="space-y-6 text-text-secondary leading-relaxed">
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">1. Общие положения</h2>
-        <p>
-          1.1. Настоящий документ является публичной офертой (предложением) Индивидуального предпринимателя 
-          Поповой Екатерины Валентиновны (УНП 291921539), действующего на основании свидетельства о 
-          государственной регистрации, в адрес любого физического лица заключить договор купли-продажи 
-          товаров, представленных на сайте blvn.you.
-        </p>
-        <p>
-          1.2. Фактом принятия (акцепта) условий настоящей оферты является оформление заказа на сайте.
-        </p>
+        if (block.block_type === 'hero') {
+          return (
+            <section key={block.id} className="relative py-16 md:py-24 bg-gradient-to-br from-purple-100 via-pink-50 to-purple-100 overflow-hidden">
+              <div className="absolute top-10 right-10 w-20 h-20 md:w-32 md:h-32 bg-pink-200/30 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-10 left-10 w-24 h-24 md:w-40 md:h-40 bg-purple-200/30 rounded-full blur-3xl"></div>
 
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">2. Предмет оферты</h2>
-        <p>
-          2.1. Продавец обязуется передать в собственность Покупателю товары, представленные на 
-          сайте blvn.you (изделия ручной работы: брелоки-котики и аксессуары), а Покупатель 
-          обязуется принять и оплатить их.
-        </p>
-        <p>
-          2.2. Каждый товар сопровождается фотографией и описанием. Изделия являются товарами 
-          ручной работы, поэтому возможны незначительные отличия от фото.
-        </p>
+              <div className="container-custom relative z-10 text-center px-4">
+                <h1 className="font-nunito font-bold text-3xl md:text-5xl lg:text-6xl text-gray-900 mb-4 md:mb-6 leading-tight">
+                  {block.title}
+                </h1>
+                <p className="text-lg md:text-xl text-gray-700 font-medium">
+                  {block.content_json?.subtitle}
+                </p>
+              </div>
+            </section>
+          )
+        }
 
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">3. Цена и оплата</h2>
-        <p>
-          3.1. Цена товара указывается на сайте в белорусских рублях (BYN).<br />
-          3.2. Оплата осуществляется наличными при получении или переводом на карту.<br />
-          3.3. Продавец оставляет за собой право изменять цены на товары без предварительного уведомления.
-        </p>
+        if (block.block_type === 'text_content') {
+          return (
+            <section key={block.id} className="py-12 md:py-20 bg-white">
+              <div className="container-custom max-w-4xl mx-auto px-4">
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl md:rounded-3xl p-6 md:p-12 shadow-lg">
+                  <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed whitespace-pre-line text-sm md:text-base">
+                    {block.content}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )
+        }
 
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">4. Доставка</h2>
-        <p>
-          4.1. Доставка осуществляется службами: Европочта, СДЭК, Белпочта.<br />
-          4.2. Срок доставки составляет от 3 до 7 рабочих дней в зависимости от региона.<br />
-          4.3. Стоимость доставки рассчитывается согласно тарифам службы доставки.
-        </p>
-
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">5. Порядок оформления заказа</h2>
-        <p>
-          5.1. Покупатель оформляет заказ через корзину на сайте, заполняя форму с контактными 
-          данными и выбирая способ доставки.<br />
-          5.2. После оформления заказа Продавец связывается с Покупателем для подтверждения 
-          и уточнения деталей.
-        </p>
-
-        <h2 className="font-nunito font-bold text-xl text-text-primary mt-8">6. Реквизиты Продавца</h2>
-        <p>
-          Индивидуальный предприниматель Попова Екатерина Валентиновна<br />
-          УНП: 291921539<br />
-          Юридический адрес: 224000, г. Брест, пер. Дружный 4-й, д. 15<br />
-          Телефон: +375 (29) 800-22-33<br />
-          E-mail: blvnyou@yandex.ru<br />
-          Свидетельство о государственной регистрации выдано администрацией Московского района г. Бреста 09.10.2025
-        </p>
-
-        <p className="text-sm mt-8">
-          Последнее обновление: 14 июля 2026 г.
-        </p>
-      </div>
+        return null
+      })}
     </div>
   )
 }
