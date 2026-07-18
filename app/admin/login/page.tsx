@@ -130,19 +130,8 @@ function LoginForm() {
         </form>
 
         <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-          <p className="text-xs font-semibold text-gray-700 mb-2">📋 Данные для входа:</p>
-          <div className="text-xs text-gray-600 space-y-2">
-            <div className="bg-white p-2 rounded border border-gray-200">
-              <span className="font-mono font-bold text-pink-600">manager</span>
-              <span className="mx-2">/</span>
-              <span className="text-gray-500">Управление товарами</span>
-            </div>
-            <div className="bg-white p-2 rounded border border-gray-200">
-              <span className="font-mono font-bold text-purple-600">content</span>
-              <span className="mx-2">/</span>
-              <span className="text-gray-500">SEO и контент</span>
-            </div>
-          </div>
+          <p className="text-xs font-semibold text-gray-700 mb-2">🔐 Доступ к панели</p>
+          <p className="text-xs text-gray-500">Войдите используя учётные данные, предоставленные администратором.</p>
         </div>
       </div>
     </div>

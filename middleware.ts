@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 
-const secretKey = process.env.ADMIN_SECRET_KEY || 'blvn-super-secret-key-2024-change-in-production'
+const secretKey = process.env.ADMIN_SECRET_KEY
 const secret = new TextEncoder().encode(secretKey)
 
 const protectedRoutes = [
@@ -20,18 +20,11 @@ export async function middleware(request: NextRequest) {
   const cookieName = 'blvn_auth'
   const cookie = request.cookies.get(cookieName)
 
-  console.log('🔍 Middleware check:', {
-    pathname,
-    hasCookie: !!cookie,
-    cookieValue: cookie?.value?.substring(0, 20) + '...'
-  })
-
   const isProtectedRoute = protectedRoutes.some(route =>
     pathname.startsWith(route)
   )
 
   if (isProtectedRoute && !cookie) {
-    console.log('❌ Нет cookie, редирект на login')
     const loginUrl = new URL('/admin/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(loginUrl)
@@ -40,8 +33,6 @@ export async function middleware(request: NextRequest) {
   if (cookie && isProtectedRoute) {
     try {
       const { payload } = await jwtVerify(cookie.value, secret)
-
-      console.log('✅ Cookie валидна, роль:', payload.role)
 
       if (pathname.startsWith('/admin/manager') && payload.role !== 'manager') {
         return NextResponse.redirect(new URL('/admin/content', request.url))
@@ -73,8 +64,7 @@ export async function middleware(request: NextRequest) {
           headers: requestHeaders
         }
       })
-    } catch (error) {
-      console.error('❌ Cookie невалидна:', error)
+    } catch {
       const response = NextResponse.redirect(new URL('/admin/login', request.url))
       response.cookies.delete(cookieName)
       return response
