@@ -3,7 +3,7 @@ const fs = require('fs')
 const path = require('path')
 
 const e = fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'utf-8')
-e.split('\n').forEach(l => {
+e.split('\n').forEach((l: string) => {
   const [k, ...r] = l.split('=')
   if (k && r.length) process.env[k.trim()] = r.join('=').trim().replace(/^["']|["']$/g, '')
 })
@@ -14,7 +14,7 @@ async function main() {
   const { data, error } = await sup
     .from('site_blocks')
     .select('id, block_type, page_id, is_visible, title, content, content_json')
-    .in('page_id', ['catalog', 'delivery', 'contacts'])
+    .in('page_id', ['catalog', 'delivery', 'contacts', 'about'])
     .order('page_id')
     .order('order_index')
 
