@@ -1,36 +1,25 @@
-const fs = require('fs')
-const path = require('path')
+// scripts/check-env.js
 
-const envPath = path.join(process.cwd(), '.env.local')
-const envContent = fs.readFileSync(envPath, 'utf8')
+const requiredEnvVars = [
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'ADMIN_SECRET_KEY',
+  'TELEGRAM_BOT_TOKEN',
+  'TELEGRAM_CHAT_ID',
+  'NEXT_PUBLIC_SITE_URL'
+  // Добавь сюда любые другие критически важные переменные, если нужно
+];
 
-const required = [
-  'ADMIN_USERNAME',
-  'ADMIN_PASSWORD',
-  'SEO_MANAGER_USERNAME',
-  'SEO_MANAGER_PASSWORD'
-]
+console.log('🔍 Проверка переменных окружения для Netlify...');
 
-console.log('🔍 Проверка .env.local...\n')
+const missing = requiredEnvVars.filter((key) => !process.env[key]);
 
-let allGood = true
-
-required.forEach(varName => {
-  const regex = new RegExp(`${varName}=(.+)`)
-  const match = envContent.match(regex)
-
-  if (match && match[1].trim()) {
-    console.log(`✅ ${varName} задана`)
-  } else {
-    console.log(`❌ ${varName} ОТСУТСТВУЕТ или пуста!`)
-    allGood = false
-  }
-})
-
-if (!allGood) {
-  console.log('\n🔴 КРИТИЧЕСКАЯ ОШИБКА: Не все переменные заданы!')
-  console.log('📄 Отредактируйте файл .env.local')
-  process.exit(1)
-} else {
-  console.log('\n✅ Все переменные окружения корректны!')
+if (missing.length > 0) {
+  console.error('❌ Отсутствуют обязательные переменные окружения:');
+  missing.forEach((key) => console.error(`  - ${key}`));
+  console.error('\n⚠️ Пожалуйста, добавь их в панель управления Netlify:');
+  console.error('Site configuration → Environment variables');
+  process.exit(1); // Останавливаем сборку с ошибкой
 }
+
+console.log('✅ Все обязательные переменные окружения найдены!');
