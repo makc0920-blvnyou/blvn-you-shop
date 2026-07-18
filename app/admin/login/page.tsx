@@ -92,7 +92,7 @@ function LoginForm() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value.trim())}
-              placeholder="manager или content"
+              placeholder="Ваш логин"
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blvn-pink/50 focus:border-transparent"
               required
               autoComplete="username"
